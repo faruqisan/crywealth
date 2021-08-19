@@ -6,12 +6,16 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/fatih/color"
+	"github.com/joho/godotenv"
 	"github.com/rodaine/table"
 )
 
 func main() {
+
+	godotenv.Load()
 
 	client := binance.NewClient("https://api.binance.com", os.Getenv("BINANCE_API_KEY"), os.Getenv("BINANCE_API_SECRET"))
 	resp, err := client.AccountSnapshot("SPOT")
@@ -37,6 +41,9 @@ func main() {
 	}
 
 	latestSnapshot := resp.SnapshotVos[len(resp.SnapshotVos)-1]
+
+	fmt.Println("Timestamp: ", time.Now())
+	fmt.Println()
 
 	headerFmt := color.New(color.FgGreen, color.Underline).SprintfFunc()
 	columnFmt := color.New(color.FgYellow).SprintfFunc()
