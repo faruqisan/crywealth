@@ -2,6 +2,7 @@ package main
 
 import (
 	"crywealth/pkg/binance"
+	"crywealth/storage"
 	"fmt"
 	"log"
 	"os"
@@ -42,7 +43,8 @@ func main() {
 
 	latestSnapshot := resp.SnapshotVos[len(resp.SnapshotVos)-1]
 
-	fmt.Println("Timestamp: ", time.Now())
+	tNow := time.Now()
+	fmt.Println("Timestamp: ", tNow)
 	fmt.Println()
 
 	headerFmt := color.New(color.FgGreen, color.Underline).SprintfFunc()
@@ -89,9 +91,55 @@ func main() {
 
 	fmt.Println()
 
+	grandTotalIDR := grandTotal * usdtbidrTickerFloat
+
 	tbl = table.New("Grand Total (USDT)", "Grand Total (IDR)")
 	tbl.WithHeaderFormatter(headerFmt)
-	tbl.AddRow(fmt.Sprintf("%.2f", grandTotal), fmt.Sprintf("%.2f", grandTotal*usdtbidrTickerFloat))
+	tbl.AddRow(fmt.Sprintf("%.2f", grandTotal), fmt.Sprintf("%.2f", grandTotalIDR))
 	tbl.Print()
 
+	fmt.Println()
+
+	dataStorage := storage.New()
+
+	if err := dataStorage.CreateIfNotExists(); err != nil {
+		log.Fatal("err on create if not exists: ", err)
+	}
+
+	records, err := dataStorage.Read()
+	if err != nil {
+		log.Fatal("err on read: ", err)
+	}
+
+	if len(records) != 0 {
+		latestRecords := records[len(records)-1]
+		// file csv format
+		// timestamp, totalUSDT, totalBIDR
+		if len(latestRecords) == 3 {
+			lastUSDT, err := strconv.ParseFloat(latestRecords[1], 64)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			lastIDR, err := strconv.ParseFloat(latestRecords[2], 64)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			diffUSDT := grandTotal - lastUSDT
+			diffIDR := grandTotalIDR - lastIDR
+			fmt.Println("difference from last check: ", latestRecords[0])
+			tbl = table.New("Diff Grand Total (USDT)", " Diff Grand Total (IDR)")
+			tbl.WithHeaderFormatter(headerFmt)
+			tbl.AddRow(fmt.Sprintf("%.2f", diffUSDT), fmt.Sprintf("%.2f", diffIDR))
+			tbl.Print()
+
+		}
+	}
+
+	// write to file latest record
+	data := []string{tNow.String(), fmt.Sprintf("%f", grandTotal), fmt.Sprintf("%f", grandTotalIDR)}
+	if err := dataStorage.Write(data); err != nil {
+		log.Fatal("err on write: ", err)
+	}
 }
