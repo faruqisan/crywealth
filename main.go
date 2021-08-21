@@ -41,7 +41,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	latestSnapshot := resp.SnapshotVos[len(resp.SnapshotVos)-1]
+	latestSnapshot, err := getLatestSnapshot(resp.SnapshotVos)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	tNow := time.Now()
 	fmt.Println("Timestamp: ", tNow)
@@ -129,9 +132,9 @@ func main() {
 			diffUSDT := grandTotal - lastUSDT
 			diffIDR := grandTotalIDR - lastIDR
 			fmt.Println("difference from last check: ", latestRecords[0])
-			tbl = table.New("Diff Grand Total (USDT)", " Diff Grand Total (IDR)")
+			tbl = table.New("Previous USDT", "Diff Grand Total (USDT)", "Previous IDR", "Diff Grand Total (IDR)")
 			tbl.WithHeaderFormatter(headerFmt)
-			tbl.AddRow(fmt.Sprintf("%.2f", diffUSDT), fmt.Sprintf("%.2f", diffIDR))
+			tbl.AddRow(fmt.Sprintf("%.2f", lastUSDT), fmt.Sprintf("%.2f", diffUSDT), fmt.Sprintf("%.2f", diffIDR), fmt.Sprintf("%.2f", lastIDR))
 			tbl.Print()
 
 		}
@@ -142,4 +145,24 @@ func main() {
 	if err := dataStorage.Write(data); err != nil {
 		log.Fatal("err on write: ", err)
 	}
+}
+
+func getLatestSnapshot(snapshots []binance.AccountSnapshotVo) (binance.AccountSnapshotVo, error) {
+	latest := binance.AccountSnapshotVo{}
+	for _, snapshot := range snapshots {
+		if latest.UpdateTime == 0 {
+			latest = snapshot
+			continue
+		}
+
+		//compare time
+		latestTime := time.Unix(0, latest.UpdateTime*int64(time.Millisecond))
+
+		currTime := time.Unix(0, snapshot.UpdateTime*int64(time.Millisecond))
+
+		if latestTime.Before(currTime) {
+			latest = snapshot
+		}
+	}
+	return latest, nil
 }
